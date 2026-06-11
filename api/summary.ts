@@ -1,4 +1,4 @@
-import { handleSummaryPayload } from '../server/jingguanRuntime';
+import { handleSummaryPayload } from '../server/jingguanRuntime.js';
 
 async function readBody(req: any) {
   if (req.body && typeof req.body === 'object') return req.body;

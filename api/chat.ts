@@ -1,4 +1,4 @@
-import { handleChatPayload } from '../server/jingguanRuntime';
+import { handleChatPayload } from '../server/jingguanRuntime.js';
 
 async function readBody(req: any) {
   if (req.body && typeof req.body === 'object') return req.body;
