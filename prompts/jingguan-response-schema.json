@@ -1,0 +1,217 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://jingguan.local/schemas/chat-response.schema.json",
+  "title": "JingguanChatResponse",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "response_type",
+    "risk_level",
+    "phase",
+    "message",
+    "mapping",
+    "question",
+    "response_mode",
+    "choices",
+    "allow_free_text",
+    "detected_beliefs",
+    "detected_tensions",
+    "detected_assumptions",
+    "unclear_concepts",
+    "can_summarize",
+    "should_summarize"
+  ],
+  "properties": {
+    "response_type": {
+      "type": "string",
+      "enum": ["normal", "summary", "crisis"]
+    },
+    "risk_level": {
+      "type": "string",
+      "enum": ["none", "low", "high"]
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["intake", "mapping", "clarification", "tension_analysis", "summary", "crisis"]
+    },
+    "message": {
+      "type": "string",
+      "minLength": 1
+    },
+    "mapping": {
+      "type": ["string", "null"]
+    },
+    "question": {
+      "type": ["string", "null"]
+    },
+    "response_mode": {
+      "type": "string",
+      "enum": ["free_text", "choice"]
+    },
+    "choices": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "id",
+          "label",
+          "description",
+          "meaning",
+          "client_followup",
+          "requires_api_after_choice"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "minLength": 1
+          },
+          "label": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1
+          },
+          "meaning": {
+            "type": "string",
+            "minLength": 1
+          },
+          "client_followup": {
+            "type": ["string", "null"]
+          },
+          "requires_api_after_choice": {
+            "type": "boolean"
+          }
+        }
+      }
+    },
+    "allow_free_text": {
+      "type": "boolean"
+    },
+    "detected_beliefs": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "detected_tensions": {
+      "type": "array",
+      "maxItems": 4,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "detected_assumptions": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "unclear_concepts": {
+      "type": "array",
+      "maxItems": 5,
+      "items": {
+        "type": "string",
+        "minLength": 1
+      }
+    },
+    "can_summarize": {
+      "type": "boolean"
+    },
+    "should_summarize": {
+      "type": "boolean"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "response_type": {
+            "const": "crisis"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "risk_level": {
+            "const": "high"
+          },
+          "phase": {
+            "const": "crisis"
+          },
+          "question": {
+            "const": null
+          },
+          "response_mode": {
+            "const": "free_text"
+          },
+          "choices": {
+            "maxItems": 0
+          },
+          "allow_free_text": {
+            "const": false
+          },
+          "can_summarize": {
+            "const": false
+          },
+          "should_summarize": {
+            "const": false
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "response_type": {
+            "const": "summary"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "phase": {
+            "const": "summary"
+          },
+          "question": {
+            "const": null
+          },
+          "response_mode": {
+            "const": "free_text"
+          },
+          "choices": {
+            "maxItems": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "response_mode": {
+            "const": "choice"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "choices": {
+            "minItems": 2,
+            "maxItems": 4
+          },
+          "allow_free_text": {
+            "const": true
+          }
+        }
+      }
+    }
+  ]
+}

@@ -5,7 +5,12 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev:mock": "VITE_JINGGUAN_API_MODE=mock vite",
+    "build": "tsc --noEmit && npm run typecheck:node && vite build",
+    "eval:jingguan": "node scripts/eval-jingguan-output.mjs",
+    "smoke:api": "node scripts/smoke-api.mjs",
+    "smoke:api:chat": "node scripts/smoke-api.mjs --chat",
+    "typecheck:node": "tsc -p tsconfig.node.json --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -16,6 +21,7 @@
     "vite": "^6.0.0"
   },
   "devDependencies": {
+    "@types/node": "^25.9.2",
     "@types/react": "^18.3.17",
     "@types/react-dom": "^18.3.5",
     "typescript": "^5.7.2"

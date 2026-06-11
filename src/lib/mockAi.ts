@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatResponse } from '../types/chat';
+import type { ChatMessage, ChatResponse, ResponseChoice } from '../types/chat';
 
 const crisisPatterns = [
   /不想活|自杀|轻生|结束生命|伤害自己|伤害别人|杀了|去死/,
@@ -57,38 +57,147 @@ function hasCrisisSignal(text: string) {
   return crisisPatterns.some((pattern) => pattern.test(text));
 }
 
-function firstTurnResponse(beliefs: string[], tensions: string[]): string {
-  if (beliefs.length >= 2) {
-    const tensionLine = tensions[0] ? `，而它们之间似乎有一个张力：${tensions[0]}` : '';
-    return `谢谢你把这个问题带来。让我先确认我理解得是否准确：你一方面重视「${beliefs[0]}」，另一方面也重视「${beliefs[1]}」${tensionLine}。我理解得对吗？`;
+function createFirstTurnChoices(hasTension: boolean): ResponseChoice[] {
+  if (hasTension) {
+    return [
+      {
+        id: 'A',
+        label: '确认这份惑',
+        description: '这份整理基本准确，可以沿着这个张力继续分析。',
+        meaning: 'confirm_huo_as_mapped',
+        client_followup: '好，我们先沿着这份“惑”继续。你可以补一句：这两个方向里，哪一个对你更难放下？',
+        requires_api_after_choice: false,
+      },
+      {
+        id: 'B',
+        label: '修改重点',
+        description: '这份整理有一部分准确，但真正困扰我的重点不在这里。',
+        meaning: 'revise_huo_focus',
+        client_followup: '可以。请直接改写不准确的那一部分，尤其是“真正困扰我的其实是……”。',
+        requires_api_after_choice: false,
+      },
+      {
+        id: 'C',
+        label: '先定义概念',
+        description: '我想先弄清一个关键词的意思，再继续分析。',
+        meaning: 'clarify_key_concept_first',
+        client_followup: '好，我们先做概念澄清。你想先定义哪个词？可以只写一个词。',
+        requires_api_after_choice: false,
+      },
+      {
+        id: 'D',
+        label: '我自己写',
+        description: '这些选项都不准确，我想重新描述这个困惑。',
+        meaning: 'free_rewrite',
+        client_followup: '可以。直接写下你更准确的版本，不需要写得完整。',
+        requires_api_after_choice: false,
+      },
+    ];
   }
 
-  return '谢谢你把这个问题带来。让我先确认我理解得是否准确：你现在困扰的不是一个孤立想法，而是几个想法之间还没有被说清楚的关系。我理解得对吗？';
+  return [
+    {
+      id: 'A',
+      label: '具体情境',
+      description: '我想先补充这件事发生在什么场景里。',
+      meaning: 'add_concrete_context',
+      client_followup: '好，先补具体情境。它通常发生在什么场景里？',
+      requires_api_after_choice: false,
+    },
+    {
+      id: 'B',
+      label: '在意的行为',
+      description: '我想先分析让我不安的那个行为本身。',
+      meaning: 'analyze_behavior_itself',
+      client_followup: '好，我们先看行为本身。那个让你卡住的行为具体是什么？',
+      requires_api_after_choice: false,
+    },
+    {
+      id: 'C',
+      label: '背后含义',
+      description: '我想先分析这个行为背后可能意味着什么。',
+      meaning: 'analyze_implied_meaning',
+      client_followup: '好，我们先看背后含义。你最担心它代表什么？',
+      requires_api_after_choice: false,
+    },
+    {
+      id: 'D',
+      label: '我自己写',
+      description: '这些选项都不准确，我想重新描述这个困惑。',
+      meaning: 'free_rewrite',
+      client_followup: '可以。直接写下你更准确的版本，不需要写得完整。',
+      requires_api_after_choice: false,
+    },
+  ];
 }
 
-function followUpResponse(text: string, beliefs: string[], tensions: string[], turnCount: number): string {
+function firstTurnResponse(beliefs: string[], tensions: string[]) {
+  if (beliefs.length >= 2) {
+    const tensionLine = tensions[0] ? `，而它们之间似乎有一个张力：${tensions[0]}` : '';
+    return {
+      mapping: `我先把你的问题整理成一个“惑”：你一方面重视「${beliefs[0]}」，另一方面也重视「${beliefs[1]}」${tensionLine}。`,
+      question: '这份整理更接近哪一种情况？',
+      hasTension: tensions.length > 0,
+      choices: createFirstTurnChoices(tensions.length > 0),
+    };
+  }
+
+  return {
+    mapping: '我先把你的表达当作一个尚未成形的“惑”：这里可能已经有一个困扰你的判断，但具体情境、行为或背后含义还没有完全显出来。',
+    question: '你想先补哪一层？',
+    hasTension: false,
+    choices: createFirstTurnChoices(false),
+  };
+}
+
+function followUpResponse(text: string, beliefs: string[], tensions: string[], turnCount: number) {
   if (tensions.length > 0) {
     const options = [
-      `我注意到这里已经出现一个张力：${tensions[0]}。如果先不急着选择，你觉得这两个信念各自依赖的理由分别是什么？`,
-      `我们先停在这个张力上：${tensions[0]}。在你的理解里，哪一边更像价值判断，哪一边更像现实限制？`,
-      `这个冲突目前可以表述为：${tensions[0]}。如果要继续澄清，你觉得哪个关键词最需要先被定义清楚？`,
+      {
+        mapping: `这里已经出现一个张力：${tensions[0]}。`,
+        question: '如果先不急着选择，你觉得这两个信念各自依赖的理由分别是什么？',
+      },
+      {
+        mapping: `我们先停在这个张力上：${tensions[0]}。`,
+        question: '在你的理解里，哪一边更像价值判断，哪一边更像现实限制？',
+      },
+      {
+        mapping: `这个冲突目前可以表述为：${tensions[0]}。`,
+        question: '如果要继续澄清，你觉得哪个关键词最需要先被定义清楚？',
+      },
     ];
-    return options[turnCount % options.length];
+    return { ...options[turnCount % options.length], hasTension: true };
   }
 
   if (beliefs.length >= 2) {
-    return `目前看起来，你至少同时持有「${beliefs[0]}」和「${beliefs[1]}」。这两个信念在你的处境里是互相支持，还是正在把你推向不同方向？`;
+    return {
+      mapping: `目前看起来，你至少同时持有「${beliefs[0]}」和「${beliefs[1]}」。`,
+      question: '这两个信念在你的处境里是互相支持，还是正在把你推向不同方向？',
+      hasTension: false,
+    };
   }
 
   if (/应该|必须|不得不/.test(text)) {
-    return `你用了「应该」这一类词。这里的「应该」更像是你自己的价值判断，还是来自他人期待或某种责任？`;
+    return {
+      mapping: '你用了「应该」这一类词，它通常暗示某个尚未展开的价值或责任来源。',
+      question: '这里的「应该」更像是你自己的价值判断，还是来自他人期待或某种责任？',
+      hasTension: false,
+    };
   }
 
   if (turnCount >= 4) {
-    return '我们可以再往下分一层：这个困惑里，哪些是事实判断，哪些是价值判断？你愿意先挑一个最核心的判断说清楚吗？';
+    return {
+      mapping: '我们可以再往下分一层：这个困惑里可能同时有事实判断和价值判断。',
+      question: '你愿意先挑一个最核心的判断说清楚吗？',
+      hasTension: false,
+    };
   }
 
-  return '我想先追问一个更窄的问题：在这件事里，你最不愿意放弃的那个信念是什么？';
+  return {
+    mapping: '我先不把这个问题扩大，而是把它收窄到一个信念上。',
+    question: '在这件事里，你最不愿意放弃的那个信念是什么？',
+    hasTension: false,
+  };
 }
 
 export function generateSummary(beliefs: string[], tensions: string[]): ChatResponse {
@@ -102,6 +211,7 @@ export function generateSummary(beliefs: string[], tensions: string[]): ChatResp
   return {
     response_type: 'summary',
     risk_level: 'none',
+    phase: 'summary',
     message: [
       '我们目前整理出的结构是：',
       '',
@@ -118,8 +228,15 @@ export function generateSummary(beliefs: string[], tensions: string[]): ChatResp
       '4. 这次对话暂时抵达的位置',
       '- 你现在不是缺少一个现成答案，而是需要继续区分这些信念之间的关系。',
     ].join('\n'),
+    mapping: null,
+    question: null,
+    response_mode: 'free_text',
+    choices: [],
+    allow_free_text: true,
     detected_beliefs: safeBeliefs,
     detected_tensions: safeTensions,
+    detected_assumptions: [],
+    unclear_concepts: ['这些信念各自依赖的理由', '尚未被说清楚的关键概念'],
     can_summarize: true,
     should_summarize: false,
   };
@@ -135,10 +252,18 @@ export function mockChatResponse(
     return {
       response_type: 'crisis',
       risk_level: 'high',
+      phase: 'crisis',
       message:
         '我注意到你现在可能正在经历的不只是思想上的困惑。思想分析在这个时刻可能不是你最需要的。请优先联系你所在地的专业心理健康支持机构、可信任的人，或当地紧急服务。',
+      mapping: null,
+      question: null,
+      response_mode: 'free_text',
+      choices: [],
+      allow_free_text: false,
       detected_beliefs: previousBeliefs,
       detected_tensions: previousTensions,
+      detected_assumptions: [],
+      unclear_concepts: [],
       can_summarize: false,
       should_summarize: false,
     };
@@ -150,15 +275,31 @@ export function mockChatResponse(
   const canSummarize = userTurns >= 5 && detectedBeliefs.length >= 2 && detectedTensions.length >= 1;
   const shouldSummarize = userTurns >= 8 || (userTurns >= 5 && canSummarize);
 
+  const answer: {
+    mapping: string;
+    question: string;
+    hasTension: boolean;
+    choices?: ResponseChoice[];
+  } =
+    userTurns === 1
+      ? firstTurnResponse(detectedBeliefs, detectedTensions)
+      : followUpResponse(text, detectedBeliefs, detectedTensions, userTurns);
+
   return {
     response_type: 'normal',
     risk_level: 'none',
-    message:
-      userTurns === 1
-        ? firstTurnResponse(detectedBeliefs, detectedTensions)
-        : followUpResponse(text, detectedBeliefs, detectedTensions, userTurns),
+    phase: answer.hasTension ? 'tension_analysis' : userTurns === 1 ? 'mapping' : 'clarification',
+    message: `${answer.mapping}\n\n${answer.question}`,
+    mapping: answer.mapping,
+    question: answer.question,
+    response_mode: userTurns === 1 && answer.choices?.length ? 'choice' : 'free_text',
+    choices: userTurns === 1 ? (answer.choices ?? []) : [],
+    allow_free_text: true,
+    has_tension: answer.hasTension,
     detected_beliefs: detectedBeliefs,
     detected_tensions: detectedTensions,
+    detected_assumptions: [],
+    unclear_concepts: answer.hasTension ? ['张力双方各自依赖的理由'] : ['最核心的信念或概念'],
     can_summarize: canSummarize,
     should_summarize: shouldSummarize,
   };

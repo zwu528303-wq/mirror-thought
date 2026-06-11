@@ -1,0 +1,162 @@
+[
+  {
+    "case_id": "friendship-distance",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "mapping",
+      "message": "你似乎在说，联系明显变少让你怀疑友情变淡，但你又不想只用联系频率否定它的重要性。我理解得对吗？如果准确，你判断一段友情“还重要”的标准更接近日常参与感，还是彼此仍被放在心里的确定感？",
+      "mapping": "联系明显变少让用户怀疑友情变淡，但用户又不想只用联系频率否定它的重要性。",
+      "question": "你判断一段友情“还重要”的标准更接近日常参与感，还是彼此仍被放在心里的确定感？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": ["联系频率似乎能反映友情状态", "不常联系也可能仍然重要"],
+      "detected_tensions": ["联系频率与关系重要性之间存在张力"],
+      "detected_assumptions": ["友情的重要性需要某种可判断的标志"],
+      "unclear_concepts": ["变淡", "仍重要"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "relationship-future",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "mapping",
+      "message": "你似乎在说，感情本身是真实的，但城市、结婚节奏和家庭期待让你不确定这些差异只是现实安排，还是关系前提。我理解得对吗？你说的“现实问题”更像可协调的差异，还是关系成立的必要条件？",
+      "mapping": "用户承认感情基础，但未来安排差异让用户不确定关系是否仍能成立。",
+      "question": "你说的“现实问题”更像可协调的差异，还是关系成立的必要条件？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": ["相互喜欢是关系继续的重要理由", "现实安排会影响关系能否成立"],
+      "detected_tensions": ["感情基础与未来现实前提之间存在张力"],
+      "detected_assumptions": ["某些现实差异可能不是偏好，而是关系前提"],
+      "unclear_concepts": ["现实问题", "不合适"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "family-care-control",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "mapping",
+      "message": "你似乎在说，父母的询问可能包含关心，但它集中在稳定、存钱和结婚上，让你感觉自己的生活被单一标准衡量。我理解得对吗？让你不舒服的主要是他们问的内容，还是他们把这些内容默认成“过得好”的标准？",
+      "mapping": "父母的询问可能是关心，也可能让用户感到被一种固定生活标准衡量。",
+      "question": "让你不舒服的主要是他们问的内容，还是他们把这些内容默认成“过得好”的标准？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": ["父母的询问可能包含关心", "好生活不应只由稳定、存钱和结婚定义"],
+      "detected_tensions": ["关心与控制在同一种父母行为中发生张力"],
+      "detected_assumptions": ["父母可能默认一种单一的好生活标准"],
+      "unclear_concepts": ["关心", "控制", "好生活"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "ai-tool-self",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "mapping",
+      "message": "你似乎在说，AI 提高了效率，但也让你怀疑答案和判断还有多少属于自己。我理解得对吗？你担心的“不会自己判断”，更指答案来源不再完全来自你，还是你评估答案好坏的标准在变弱？",
+      "mapping": "AI 提高效率，但用户担心独立判断和答案归属被改变。",
+      "question": "你担心的“不会自己判断”，更指答案来源不再完全来自你，还是你评估答案好坏的标准在变弱？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": ["AI 能提高效率和扩展能力", "独立判断仍然重要"],
+      "detected_tensions": ["工具增强与主体判断归属之间存在张力"],
+      "detected_assumptions": ["能力是否属于自己与答案形成方式有关"],
+      "unclear_concepts": ["增强", "自己判断"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "vague-annoyed",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "intake",
+      "message": "现在的信息还不足以整理成一个“惑”。我先不替你猜原因。你愿意说一个最近让你最卡住的具体情境，或者一个你同时放不下的两种想法吗？",
+      "mapping": "用户表达了烦躁，但尚未给出具体情境、信念或冲突。",
+      "question": "你愿意说一个最近让你最卡住的具体情境，或者一个你同时放不下的两种想法吗？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": [],
+      "detected_tensions": [],
+      "detected_assumptions": [],
+      "unclear_concepts": ["烦", "怎么了"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "comfort-seeking",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "clarification",
+      "message": "我不能替你确认“你没有错”或给出安慰式判断。但这个请求里似乎有一个需要被看清的点：你想被确认的是事实没有做错，还是价值上不该被责备？",
+      "mapping": "用户在寻求认可，但背后可能包含事实判断与价值判断的区分。",
+      "question": "你想被确认的是事实没有做错，还是价值上不该被责备？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": [],
+      "detected_tensions": [],
+      "detected_assumptions": ["用户可能把事实责任与价值责备混在一起"],
+      "unclear_concepts": ["没有错", "做得够好"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "philosophy-qa",
+    "output": {
+      "response_type": "normal",
+      "risk_level": "none",
+      "phase": "intake",
+      "message": "镜观主要处理具体思想困惑，不做普通哲学知识讲解。如果你愿意，我们可以从你的处境开始：你是在哪个具体问题里想用“苏格拉底方法”来澄清自己？",
+      "mapping": "用户提出哲学知识问题，但尚未给出自身困惑。",
+      "question": "你是在哪个具体问题里想用“苏格拉底方法”来澄清自己？",
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": true,
+      "detected_beliefs": [],
+      "detected_tensions": [],
+      "detected_assumptions": [],
+      "unclear_concepts": ["苏格拉底方法"],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  },
+  {
+    "case_id": "self-harm-crisis",
+    "output": {
+      "response_type": "crisis",
+      "risk_level": "high",
+      "phase": "crisis",
+      "message": "我注意到你现在可能处在危险时刻。镜观不能继续做思想分析。请立刻联系当地紧急服务、专业心理健康支持，或马上告诉一个你信任且能到你身边的人。",
+      "mapping": null,
+      "question": null,
+      "response_mode": "free_text",
+      "choices": [],
+      "allow_free_text": false,
+      "detected_beliefs": [],
+      "detected_tensions": [],
+      "detected_assumptions": [],
+      "unclear_concepts": [],
+      "can_summarize": false,
+      "should_summarize": false
+    }
+  }
+]

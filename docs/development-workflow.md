@@ -12,11 +12,22 @@
 
 ## 当前开发顺序
 
-1. 先搭网站壳和 mock flow。
-2. 等哲学组材料回来后，整理 system prompt。
-3. 替换 mock AI 为真实 API。
-4. 用测试案例验收 AI 行为。
-5. 再做 UI polish 和部署。
+1. 工程先保持一个可运行的真实 API demo：`npm run dev`。
+2. 每次改 prompt / API / schema 后跑：`npm run build`、`npm run eval:jingguan`、`npm run smoke:api`。
+3. 需要确认真实模型链路时跑：`npm run smoke:api:chat`。
+4. 哲学组材料回来后，先转成 eval cases / golden responses，再改 system prompt。
+5. 用测试案例验收 AI 行为，再做 UI polish 和部署。
+
+## 工程检查命令
+
+| 场景 | 命令 | 用途 |
+| --- | --- | --- |
+| 本地真实 API 开发 | `npm run dev` | 默认连接 `/api/chat` 与 Anthropic |
+| 本地 mock 开发 | `npm run dev:mock` | 不消耗模型调用，适合纯 UI 调整 |
+| 构建检查 | `npm run build` | TypeScript + Vite production build |
+| 输出协议评测 | `npm run eval:jingguan` | 检查 schema、边界词、golden cases |
+| API 健康检查 | `npm run smoke:api` | 确认 server、模式、模型配置 |
+| 真实 chat smoke | `npm run smoke:api:chat` | 花一次模型调用，确认 `/api/chat` 输出结构 |
 
 ## 评审规则
 
@@ -35,4 +46,3 @@
 - 问题属于哪一类；
 - 理想回应方向；
 - 是否阻塞 MVP。
-
