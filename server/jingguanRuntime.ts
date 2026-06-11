@@ -555,40 +555,62 @@ function readBoolean(value: unknown, fallback: boolean) {
   return typeof value === 'boolean' ? value : fallback;
 }
 
-function assertStringArray(value: unknown, field: string, maxItems: number) {
+function stripLooseQuotes(value: string): string {
+  let item = value.trim().replace(/\\"/g, '"');
+  if (item.length >= 2 && item.startsWith('"') && item.endsWith('"')) {
+    item = item.slice(1, -1).trim();
+  }
+  return item;
+}
+
+function parseLooseStringArray(value: string): string[] | null {
+  const trimmed = stripLooseQuotes(value);
+  if (!trimmed.startsWith('[') || !trimmed.endsWith(']')) return null;
+
+  const inner = trimmed.slice(1, -1).trim();
+  if (!inner) return [];
+
+  return inner
+    .split(/,\s*(?=")/)
+    .map(stripLooseQuotes)
+    .filter(Boolean);
+}
+
+function parseSerializedStringArray(value: string, field: string, maxItems: number): string[] {
+  const item = value.trim();
+  if (!item) return [];
+
+  if ((item.startsWith('[') && item.endsWith(']')) || (item.startsWith('"') && item.includes('['))) {
+    try {
+      const parsed = JSON.parse(item);
+      return assertStringArray(parsed, field, maxItems);
+    } catch {
+      const looseItems = parseLooseStringArray(item);
+      if (looseItems) return looseItems.slice(0, maxItems);
+    }
+  }
+
+  return [stripLooseQuotes(item)].slice(0, maxItems);
+}
+
+function assertStringArray(value: unknown, field: string, maxItems: number): string[] {
   if (value === null || value === undefined) {
     return [];
   }
 
   if (typeof value === 'string') {
-    const item = value.trim();
-    if (item.startsWith('[')) {
-      try {
-        return assertStringArray(JSON.parse(item), field, maxItems);
-      } catch {
-        // Fall through to single-item recovery.
-      }
-    }
-    return item ? [item].slice(0, maxItems) : [];
-  }
-
-  if (Array.isArray(value) && value.length === 1 && typeof value[0] === 'string' && value[0].trim().startsWith('[')) {
-    try {
-      return assertStringArray(JSON.parse(value[0].trim()), field, maxItems);
-    } catch {
-      // Fall through to normal array handling.
-    }
+    return parseSerializedStringArray(value, field, maxItems);
   }
 
   if (!Array.isArray(value)) {
     throw new Error(`${field} must be an array`);
   }
 
-  const items = value.map((item) => {
+  const items = value.flatMap((item) => {
     if (typeof item !== 'string' || !item.trim()) {
       throw new Error(`${field} must contain non-empty strings`);
     }
-    return item.trim();
+    return parseSerializedStringArray(item, field, maxItems);
   });
 
   if (items.length > maxItems) {
