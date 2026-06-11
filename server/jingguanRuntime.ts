@@ -35,6 +35,7 @@ interface EndpointHealthBody {
   api_url: string;
   api_version: string;
   max_tokens: number;
+  commit_sha: string | null;
   timestamp: string;
 }
 
@@ -322,6 +323,7 @@ export async function handleHealthPayload(): Promise<EndpointResult> {
       api_url: config.apiUrl,
       api_version: config.apiVersion,
       max_tokens: config.maxTokens,
+      commit_sha: process.env.VERCEL_GIT_COMMIT_SHA ?? null,
       timestamp: new Date().toISOString(),
     },
   };
