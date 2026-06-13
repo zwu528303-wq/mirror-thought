@@ -61,4 +61,5 @@ export interface ConversationState {
   canSummarize: boolean;
   shouldSummarize: boolean;
   isCrisis: boolean;
+  isClosed: boolean;
 }

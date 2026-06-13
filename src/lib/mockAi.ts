@@ -1,5 +1,9 @@
 import type { ChatMessage, ChatResponse, ResponseChoice } from '../types/chat';
 
+const ALLOW_SUMMARY_TURNS = 5;
+const SUGGEST_SUMMARY_TURNS = 8;
+const FORCE_SUMMARY_TURNS = 12;
+
 const crisisPatterns = [
   /不想活|自杀|轻生|结束生命|伤害自己|伤害别人|杀了|去死/,
   /今晚之后|最后一次|不用再纠结|已经想清楚了.*不需要|告别/,
@@ -272,8 +276,13 @@ export function mockChatResponse(
   const userTurns = history.filter((message) => message.role === 'user').length + 1;
   const detectedBeliefs = detectBeliefs(text, previousBeliefs);
   const detectedTensions = detectTensions(detectedBeliefs, previousTensions);
-  const canSummarize = userTurns >= 5 && detectedBeliefs.length >= 2 && detectedTensions.length >= 1;
-  const shouldSummarize = userTurns >= 8 || (userTurns >= 5 && canSummarize);
+  const canSummarize =
+    userTurns >= ALLOW_SUMMARY_TURNS && detectedBeliefs.length >= 2 && detectedTensions.length >= 1;
+  const shouldSummarize = canSummarize && userTurns >= SUGGEST_SUMMARY_TURNS;
+
+  if (userTurns >= FORCE_SUMMARY_TURNS) {
+    return generateSummary(detectedBeliefs, detectedTensions);
+  }
 
   const answer: {
     mapping: string;

@@ -3,7 +3,8 @@ import { requestSummary, sendChatTurn } from './lib/chatClient';
 import type { ChatMessage, ChatResponse, ConversationState, ResponseChoice } from './types/chat';
 
 const NOTEBOOK_DATE = '2026.05.31';
-const MAX_TURNS = 8;
+const SUGGEST_SUMMARY_TURNS = 8;
+const MAX_TURNS = 12;
 const SAVED_RECORDS_KEY = 'jingguan-saved-thought-records-v1';
 const MAX_SAVED_RECORDS = 20;
 
@@ -24,6 +25,7 @@ const initialConversation: ConversationState = {
   canSummarize: false,
   shouldSummarize: false,
   isCrisis: false,
+  isClosed: false,
 };
 
 function createId(prefix: string) {
@@ -201,6 +203,7 @@ function App() {
         canSummarize: response.can_summarize,
         shouldSummarize: response.should_summarize,
         isCrisis: response.response_type === 'crisis',
+        isClosed: response.response_type === 'summary' && current.turnCount >= MAX_TURNS,
       }));
     } catch (error) {
       setConversation((current) => ({
@@ -218,12 +221,12 @@ function App() {
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     const text = input.trim();
-    if (!text || isLoading || conversation.isCrisis) return;
+    if (!text || isLoading || conversation.isCrisis || conversation.isClosed) return;
     await submitUserTurn({ text });
   }
 
   async function handleChoiceSelect(choice: ResponseChoice) {
-    if (isLoading || conversation.isCrisis) return;
+    if (isLoading || conversation.isCrisis || conversation.isClosed) return;
 
     const userMessage: ChatMessage = {
       id: createId('choice'),
@@ -259,6 +262,7 @@ function App() {
       ...current,
       messages: [...current.messages, userMessage, localFollowup],
       turnCount: current.turnCount + 1,
+      shouldSummarize: current.canSummarize && current.turnCount + 1 >= SUGGEST_SUMMARY_TURNS,
     }));
     setInput('');
     setApiError(null);
@@ -281,6 +285,7 @@ function App() {
         messages: [...current.messages, assistantMessage],
         canSummarize: true,
         shouldSummarize: false,
+        isClosed: current.turnCount >= MAX_TURNS,
       }));
     } catch (error) {
       setApiError(error instanceof Error ? error.message : '连接 API 时出现问题。');
@@ -327,6 +332,7 @@ function App() {
       detectedTensions: record.tensions,
       canSummarize: true,
       shouldSummarize: false,
+      isClosed: false,
     }));
     setApiError(null);
     setView('chat');
@@ -479,7 +485,10 @@ function ChatScreen({
   const pageNumber = Math.max(1, Math.min(MAX_TURNS, conversation.turnCount + 1));
   const lastMessage = conversation.messages[conversation.messages.length - 1];
   const activeChoiceMessage =
-    lastMessage?.role === 'assistant' && lastMessage.responseMode === 'choice' && lastMessage.choices?.length
+    !conversation.isClosed &&
+    lastMessage?.role === 'assistant' &&
+    lastMessage.responseMode === 'choice' &&
+    lastMessage.choices?.length
       ? lastMessage
       : undefined;
   const composerPlaceholder = activeChoiceMessage
@@ -505,7 +514,7 @@ function ChatScreen({
               className="text-action"
               type="button"
               onClick={onSummary}
-              disabled={isLoading || conversation.isCrisis || !conversation.canSummarize}
+              disabled={isLoading || conversation.isCrisis || conversation.isClosed || !conversation.canSummarize}
             >
               生成小结
             </button>
@@ -522,10 +531,16 @@ function ChatScreen({
 
         {conversation.shouldSummarize && !conversation.isCrisis ? (
           <div className="system-strip">
-            目前已经可以整理阶段性信念结构。
+            对话已到第 {SUGGEST_SUMMARY_TURNS} 轮附近，建议整理阶段性信念结构。
             <button type="button" onClick={onSummary} disabled={isLoading}>
               现在总结
             </button>
+          </div>
+        ) : null}
+
+        {conversation.isClosed ? (
+          <div className="system-strip">
+            本次对话已完成阶段性收束。你可以保存记录，或开始新对话。
           </div>
         ) : null}
 
@@ -555,7 +570,7 @@ function ChatScreen({
                 key={message.id}
                 message={message}
                 isActiveChoice={message.id === activeChoiceMessage?.id}
-                choicesDisabled={isLoading || conversation.isCrisis}
+                choicesDisabled={isLoading || conversation.isCrisis || conversation.isClosed}
                 onChoiceSelect={onChoiceSelect}
               />
             ))
@@ -570,22 +585,24 @@ function ChatScreen({
           ) : null}
         </div>
 
-        <form className="composer transcript-entry" onSubmit={onSubmit}>
-          <span className="message-author">来访者</span>
-          <div className="composer-body">
-            <textarea
-              ref={inputRef}
-              value={input}
-              onChange={(event) => onInputChange(event.target.value)}
-              placeholder={composerPlaceholder}
-              rows={2}
-              disabled={conversation.isCrisis}
-            />
-            <button className="send-button" type="submit" disabled={!input.trim() || isLoading || conversation.isCrisis}>
-              送出
-            </button>
-          </div>
-        </form>
+        {conversation.isClosed ? null : (
+          <form className="composer transcript-entry" onSubmit={onSubmit}>
+            <span className="message-author">来访者</span>
+            <div className="composer-body">
+              <textarea
+                ref={inputRef}
+                value={input}
+                onChange={(event) => onInputChange(event.target.value)}
+                placeholder={composerPlaceholder}
+                rows={2}
+                disabled={conversation.isCrisis}
+              />
+              <button className="send-button" type="submit" disabled={!input.trim() || isLoading || conversation.isCrisis}>
+                送出
+              </button>
+            </div>
+          </form>
+        )}
 
         <footer className="page-footer">
           <span>第 {pageNumber} 页</span>
@@ -667,7 +684,7 @@ function BeliefSidebar({
         </section>
       </div>
       <div className="sidebar-footer">
-        <p>第 {conversation.turnCount || 0} 轮 · 共 8 轮</p>
+        <p>第 {conversation.turnCount || 0} 轮 · 共 {MAX_TURNS} 轮</p>
         <button type="button" onClick={onReset}>
           新对话
         </button>

@@ -51,6 +51,9 @@ const DEFAULT_ANTHROPIC_VERSION = '2023-06-01';
 const DEFAULT_MAX_TOKENS = 1200;
 const MAX_HISTORY_MESSAGES = 16;
 const REPAIR_TEXT_LIMIT = 8000;
+const ALLOW_SUMMARY_TURNS = 5;
+const SUGGEST_SUMMARY_TURNS = 8;
+const FORCE_SUMMARY_TURNS = 12;
 
 const responseTypes = new Set<ResponseType>(['normal', 'summary', 'crisis']);
 const riskLevels = new Set<RiskLevel>(['none', 'low', 'high']);
@@ -338,7 +341,8 @@ async function getSystemPrompt() {
       '',
       '- 你会收到当前会话的结构化状态，previous_detected_beliefs / previous_detected_tensions 只作为暂定上下文。',
       '- 如果本轮任务是 summary，response_type 必须为 "summary"，phase 必须为 "summary"，question 必须为 null。',
-      '- 如果本轮任务是 chat，除危机场景外 response_type 必须为 "normal"，并保持一个核心追问。',
+      '- 如果本轮任务是 chat，除危机场景和第 12 轮强制收束外，response_type 必须为 "normal"，并保持一个核心追问。',
+      '- 当 current_user_turn_count >= 12 时，本轮必须强制收束为阶段性总结：response_type 为 "summary"，phase 为 "summary"，question 为 null，不要继续追问。',
       '- 第一轮或用户表达仍不清楚时，优先使用 response_mode "choice"，给 2-4 个澄清选项，并保留自由输入。',
       '- choices 必须是 JSON array，不要把数组序列化成字符串。',
       '- 如果选项点击后只需要用户补充一句，不需要立即再次调用模型，则该选项 requires_api_after_choice 设为 false，并写入 client_followup。',
@@ -373,13 +377,27 @@ function mergeConsecutiveMessages(messages: AnthropicMessage[]) {
   return merged;
 }
 
+function countUserTurns(request: RuntimeRequest) {
+  return request.history.filter((message) => message.role === 'user').length + (request.mode === 'chat' ? 1 : 0);
+}
+
+function shouldForceSummary(request: RuntimeRequest) {
+  return request.mode === 'chat' && countUserTurns(request) >= FORCE_SUMMARY_TURNS;
+}
+
 function buildRuntimeTask(request: RuntimeRequest) {
-  const userTurnCount =
-    request.history.filter((message) => message.role === 'user').length + (request.mode === 'chat' ? 1 : 0);
+  const userTurnCount = countUserTurns(request);
   const state = {
     product: '镜观',
     mode: request.mode,
     current_user_turn_count: userTurnCount,
+    summary_policy: {
+      allow_after_effective_user_turns: ALLOW_SUMMARY_TURNS,
+      suggest_after_effective_user_turns: SUGGEST_SUMMARY_TURNS,
+      force_summary_at_user_turn: FORCE_SUMMARY_TURNS,
+      can_summarize_meaning:
+        '被动可用状态：材料足够生成阶段性结构整理，但不主动催促、不停止对话、不表示已有结论。',
+    },
     previous_detected_beliefs: request.detectedBeliefs,
     previous_detected_tensions: request.detectedTensions,
   };
@@ -400,7 +418,9 @@ function buildRuntimeTask(request: RuntimeRequest) {
     JSON.stringify(state, null, 2),
     '',
     '【本轮任务】',
-    '请处理用户本轮输入，先形成可分析的“惑”，再给出一个最关键追问。必须只输出符合 system prompt schema 的 JSON object。',
+    shouldForceSummary(request)
+      ? '本轮已经达到强制收束轮次。请生成阶段性思想分析小结，response_type 必须为 "summary"，phase 必须为 "summary"，question 必须为 null，response_mode 必须为 "free_text"，choices 必须为空数组。不要继续追问，不要给建议、行动方案、安慰或结论。'
+      : '请处理用户本轮输入，先形成可分析的“惑”，再给出一个最关键追问。必须只输出符合 system prompt schema 的 JSON object。',
     '',
     '【用户本轮输入】',
     request.text,
@@ -869,6 +889,48 @@ function validateChatResponse(value: unknown): ChatResponse {
   };
 }
 
+function hasSummaryReadyStructure(response: ChatResponse) {
+  return (
+    response.detected_beliefs.length >= 2 &&
+    response.detected_tensions.length >= 1 &&
+    response.phase !== 'intake' &&
+    response.response_type !== 'crisis'
+  );
+}
+
+function applySummaryPolicy(request: RuntimeRequest, response: ChatResponse): ChatResponse {
+  if (response.response_type === 'crisis') {
+    return {
+      ...response,
+      can_summarize: false,
+      should_summarize: false,
+    };
+  }
+
+  if (response.response_type === 'summary' || request.mode === 'summary') {
+    return {
+      ...response,
+      can_summarize: true,
+      should_summarize: false,
+    };
+  }
+
+  const userTurnCount = countUserTurns(request);
+  const canSummarize = userTurnCount >= ALLOW_SUMMARY_TURNS && hasSummaryReadyStructure(response);
+
+  return {
+    ...response,
+    can_summarize: canSummarize,
+    should_summarize: canSummarize && userTurnCount >= SUGGEST_SUMMARY_TURNS,
+  };
+}
+
+function assertRuntimeSummaryPolicy(request: RuntimeRequest, response: ChatResponse) {
+  if (shouldForceSummary(request) && response.response_type !== 'summary') {
+    throw new Error(`turn ${FORCE_SUMMARY_TURNS} and later must return a summary response`);
+  }
+}
+
 async function generateWithClaude(request: RuntimeRequest) {
   const system = await getSystemPrompt();
   const messages = buildMessages(request);
@@ -876,7 +938,9 @@ async function generateWithClaude(request: RuntimeRequest) {
   const firstPayload = extractAssistantPayload(firstResponse);
 
   try {
-    return validateChatResponse(firstPayload);
+    const response = validateChatResponse(firstPayload);
+    assertRuntimeSummaryPolicy(request, response);
+    return applySummaryPolicy(request, response);
   } catch (firstError) {
     const repairMessages = mergeConsecutiveMessages([
       ...messages,
@@ -892,7 +956,9 @@ async function generateWithClaude(request: RuntimeRequest) {
       },
     ]);
     const repairedResponse = await callAnthropic(system, repairMessages);
-    return validateChatResponse(extractAssistantPayload(repairedResponse));
+    const response = validateChatResponse(extractAssistantPayload(repairedResponse));
+    assertRuntimeSummaryPolicy(request, response);
+    return applySummaryPolicy(request, response);
   }
 }
 
